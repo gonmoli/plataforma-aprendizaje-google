@@ -2,8 +2,7 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { consultar } from '../db.js';
 
-// Obtenemos el secreto de JWT de las variables de entorno
-const secretoJWT = process.env.JWT_SECRET;
+// El secreto JWT ahora se evaluará dentro de la función para evitar la condición de carrera con dotenv
 
 /**
  * Controlador para registrar un nuevo usuario en la base de datos
@@ -78,7 +77,8 @@ export const iniciarSesion = async (req, res) => {
       correo: usuario.correo
     };
 
-    // Firmar el token con expiración de 24 horas
+    // Firmar el token con expiración de 24 horas usando la variable cargada dinámicamente
+    const secretoJWT = process.env.JWT_SECRET;
     const token = jwt.sign(payload, secretoJWT, { expiresIn: '24h' });
 
     res.status(200).json({

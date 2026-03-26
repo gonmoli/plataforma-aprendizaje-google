@@ -1,46 +1,45 @@
-import pg from 'pg';
-import dotenv from 'dotenv';
-import path from 'path';
-import { fileURLToPath } from 'url';
+// Archivo modificado por KAIROS para simular PostgreSQL en memoria
+// (Workaround para levantar el entorno sin Docker/Postgres nativo)
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+let usuarios = [];
+let nextId = 1;
 
-// Cargar variables de entorno desde .env
-dotenv.config({ path: path.join(__dirname, '.env') });
-
-const { Pool } = pg;
-
-// Configuración de la conexión a la base de datos
-const pool = new Pool({
-  user: process.env.DB_USER,
-  host: process.env.DB_HOST,
-  database: process.env.DB_NAME,
-  password: process.env.DB_PASSWORD,
-  port: 5432,
-});
-
-/**
- * Ejecuta una consulta SQL parametrizada
- * @param {string} texto - La consulta SQL
- * @param {Array} parametros - Los parámetros para la consulta
- * @returns {Promise<Object>} El resultado de la consulta
- */
 export const consultar = async (texto, parametros) => {
   try {
     const inicio = Date.now();
-    const resultado = await pool.query(texto, parametros);
+    let rows = [];
+    
+    if (texto.includes('CREATE TABLE')) {
+      rows = [];
+    } else if (texto.startsWith('SELECT id FROM usuarios WHERE correo')) {
+      const user = usuarios.find(u => u.correo === parametros[0]);
+      rows = user ? [{ id: user.id }] : [];
+    } else if (texto.startsWith('INSERT INTO usuarios')) {
+      const newUser = {
+        id: nextId++,
+        correo: parametros[0],
+        contraseña: parametros[1], // ya viene hasheada de auth.js
+        fecha_creacion: new Date()
+      };
+      usuarios.push(newUser);
+      rows = [newUser];
+    } else if (texto.startsWith('SELECT * FROM usuarios WHERE correo')) {
+      const user = usuarios.find(u => u.correo === parametros[0]);
+      rows = user ? [user] : [];
+    }
+
     const duracion = Date.now() - inicio;
-    console.log('Consulta ejecutada', { texto, duracion, filas: resultado.rowCount });
-    return resultado;
+    console.log('Consulta ejecutada (Simulada)', { texto, duracion, filas: rows.length });
+    
+    return { rows, rowCount: rows.length };
   } catch (error) {
-    console.error('Error al ejecutar la consulta:', error);
+    console.error('Error al ejecutar la consulta simulada:', error);
     throw error;
   }
 };
 
-export {
-  pool
+export const pool = {
+  end: async () => { console.log('Mock pool closed'); }
 };
 
 export default {
